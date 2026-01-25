@@ -443,5 +443,4 @@ MIT License
 ---
 
 ## Contact
-
-[Your contact information]
+idt@semarx.com
