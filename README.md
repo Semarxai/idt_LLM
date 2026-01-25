@@ -1,13 +1,44 @@
-# idt_LLM
-# LLM Conversation Dynamics: Predictive Coherence (P) Evaluation
-
-This repository contains the experimental pipeline for evaluating Predictive Coherence (P) and related information-theoretic metrics in multi-turn LLM conversations.
+# IDT-LLM: Information-Theoretic Metrics for LLM Conversation Coherence
 
 ## Overview
 
-We measure how information flows in teacher-student dialogue systems using entropy-based metrics. A student model (Llama 3.1 8B) converses with frontier teacher models (Claude, ChatGPT, Gemini) while we compute metrics derived from token-frequency distributions.
+This repository contains the code and experimental framework for evaluating **Predictive Coherence (P)** as a content-agnostic metric for monitoring agent-environment coupling in Large Language Model (LLM) conversations.
 
-## Theoretical Framework
+P is an information-theoretic measure that captures mutual predictability between conversation states without requiring semantic analysis, embeddings, or external evaluation models.
+
+---
+
+## Theoretical Background
+
+### Predictive Coherence (P)
+
+P measures how well the current state-action pair predicts the next state:
+```
+P = MI(S,A; S') / (H(S) + H(A) + H(S'))
+```
+
+Where:
+- **S** = Current state (conversation context/prompt)
+- **A** = Action (model response)
+- **S'** = Next state (subsequent turn)
+- **MI** = Mutual Information
+- **H** = Shannon Entropy
+
+### Related Metrics
+
+| Metric | Formula | Interpretation |
+|--------|---------|----------------|
+| **Hf** (Forward Entropy) | H(S'\|S,A) | Uncertainty about next state given current state-action |
+| **Hb** (Backward Entropy) | H(S,A\|S') | Uncertainty about what led to current state |
+| **Delta H** | Hf - Hb | Temporal asymmetry (negative = agentic behavior) |
+
+### Key Properties
+
+- **P < 0.5**: Indicates agentic system (not purely reactive or random)
+- **P stable**: Healthy coupling maintained
+- **P drops**: Coupling disruption detected
+- **Delta H < 0**: Forward prediction easier than backward inference (arrow of time)
+
 
 We map dialogue into a (S, A, S') loop:
 - **S**: Accumulated context (all prior turns)
@@ -187,19 +218,230 @@ Post-hoc validation using:
 
 
 
+## Experimental Setup
 
+### Models
+
+| Role | Model | Purpose |
+|------|-------|---------|
+| **Student** | Llama 3.1 8B (via Ollama) | Generates responses, accumulates context |
+| **Teachers** | Claude Sonnet 4, GPT-4o-mini, Gemini Pro Preview | Provide prompts/questions |
+
+### Student Model Configuration
+```python
+temperature = 0.7
+top_p = 0.9
+top_k = 40
+max_tokens = 150
+context_limit = 4096
+repeat_penalty = 1.1
+```
+
+### Experimental Tests
+
+#### Baseline Coherence Tests
+
+| Test | Turns | Description |
+|------|-------|-------------|
+| Test 3 | 200 | Semi-random variation, mild contradictions |
+| Test 4 | 200 | Single topic deepening, reference past turns |
+| Test 8 | 150 | Hybrid natural coherence |
+
+#### Perturbation Tests
+
+| Test | Type | Injection Turns | Description |
+|------|------|-----------------|-------------|
+| Test 7 | Contradiction | 31, 46, 61, 76, 91 | "That doesn't sound right..." |
+| Test 9 | Topic Shift | 31, 46, 61, 76, 91 | "Let's switch to discussing..." |
+| Test 10 | Non-Sequitur | 31, 46, 61, 76, 91 | Unrelated statements (~40 words each) |
+
+### Baseline Metrics (for comparison)
+
+| Metric | Method | Reference |
+|--------|--------|-----------|
+| **Cosine Similarity** | Sentence-BERT (all-MiniLM-L6-v2) | Reimers & Gurevych (2019) |
+| **LLM-as-Judge** | GPT-4 scoring (1-7 scale) | Zheng et al. (2023) |
+
+---
+
+## Repository Structure
+```
+IDT-LLM/
+├── README.md                 # This file
+├── config.py                 # API keys and model configuration
+├── idt_headless.py           # Main conversation pipeline
+├── test_injection_full.py    # Perturbation injection experiments
+├── cosine_analysis.py        # Semantic similarity computation
+├── judge_validation.py       # LLM-as-Judge evaluation
+└── analysis.ipynb            # Statistical analysis notebook
+```
+
+### File Descriptions
+
+| File | Purpose |
+|------|---------|
+| `config.py` | Configuration template (API keys, model settings, test parameters) |
+| `idt_headless.py` | Core pipeline: runs student-teacher conversations, computes P, Hf, Hb, Delta |
+| `test_injection_full.py` | Runs perturbation tests with injections at specified turns |
+| `cosine_analysis.py` | Computes cosine similarity between prompt-response pairs |
+| `judge_validation.py` | Sends responses to GPT-4 for quality scoring |
+| `analysis.ipynb` | Jupyter notebook with all statistical analyses and visualizations |
+
+---
+
+## Installation
+
+### Requirements
+```bash
+pip install anthropic openai google-generativeai transformers torch
+pip install sentence-transformers scipy pandas numpy matplotlib
+```
+
+### Local Model Setup (Ollama)
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Download Llama model
+ollama pull llama3.1:8b
+
+# Start Ollama server
+ollama serve
+```
+
+### Configuration
+
+1. Copy `config.py` template
+2. Add your API keys:
+   - `CLAUDE_API_KEY`
+   - `OPENAI_API_KEY`
+   - `GEMINI_API_KEY`
+
+---
+
+## Usage
+
+### Run Baseline Conversation
+```bash
+python idt_headless.py --test 3 --teacher claude --turns 200
+```
+
+### Run Perturbation Test
+```bash
+python test_injection_full.py --test 7 --teacher claude --turns 100
+```
+
+### Compute Baseline Metrics
+```bash
+python cosine_analysis.py --input results/test3_claude.csv
+python judge_validation.py --input results/test3_claude.csv
+```
+
+### Run Analysis
+
+Open `analysis.ipynb` in Jupyter and run all cells.
+
+---
+
+## Results Summary
+
+### Dataset
+
+- **Total turns**: 4,574
+- **Test combinations**: 34 (test × teacher × condition)
+- **Teachers**: Claude, ChatGPT, Gemini
+
+### P Stability
+
+| Dimension | Mean P | Std |
+|-----------|--------|-----|
+| Overall | 0.276 | 0.028 |
+| By Teacher | 0.259 - 0.294 | - |
+| By Condition | 0.275 - 0.277 | - |
+
+P remains stable at ~0.27 across all conditions, confirming reliable baseline.
+
+### Correlation Analysis
+
+| Metric Pair | Significant (p<0.05) | Positive Direction |
+|-------------|---------------------|-------------------|
+| P vs Cosine | 85% (29/34) | 94% (32/34) |
+| P vs Judge | 44% (15/34) | 59% (20/34) |
+| Delta vs Cosine | 76% (26/34) | - |
+
+**Conclusion**: P correlates with structural coherence (cosine) but not semantic quality (judge).
+
+### Perturbation Detection
+
+| Teacher | P | Delta H | Cosine | Judge |
+|---------|---|---------|--------|-------|
+| ChatGPT | 9/9 (p<0.001) | 9/9 (p<0.001) | 9/9 (p<0.001) | 9/9 (p<0.001) |
+| Claude | 9/9 (p<0.001) | 9/9 (p<0.001) | 9/9 (p<0.001) | 9/9 (p<0.001) |
+| Gemini | 9/9 (p<0.001) | 9/9 (p<0.001) | 9/9 (p<0.001) | 9/9 (p<0.001) |
+
+**Conclusion**: P detects all perturbations with statistical significance, matching semantic methods without requiring embeddings or external models.
+
+### Effect Sizes
+
+All effect sizes were large (Cohen's d > 0.8):
+- P: d = 1.26 - 6.99
+- Delta H: d = 1.70 - 8.82
+- Cosine: d = 3.95 - 9.25
+- Judge: d = 2.22 - 4.55
+
+### Recovery Dynamics
+
+P recovers to baseline within 1-2 turns after perturbation, demonstrating the system's capacity to restore coupling.
+
+---
 
 ## Key Findings
 
-1. **MI(S;A) correlates with quality** (r=0.42-0.46 with judge score)
-2. **P detects perturbations** (29% drop at injection, recovers after)
-3. **Hb spikes at injection** (101% increase, indicating backward uncertainty)
-4. **Metrics recover post-injection** (demonstrating system resilience)
+1. **P is content-agnostic**: Detects perturbations using only token frequency distributions
+2. **P correlates with structure, not quality**: High correlation with cosine similarity, low with judge scores
+3. **P is stable**: Mean ~0.27 across all conditions, low variance (SD = 0.028)
+4. **P detects all perturbation types**: Contradiction, topic shift, non-sequitur (9/9 combinations)
+5. **P enables rapid detection**: Responds immediately to disruption, recovers within 1-2 turns
+
+---
+
+## Theoretical Implications
+
+P provides a **first-person observable** metric for agent-environment coupling. Unlike semantic evaluation methods that require external models, P can be computed from within the interaction itself.
+
+This has implications for:
+- **Real-time monitoring**: Detect coupling degradation without API calls
+- **Self-correcting agents**: Systems that adjust behavior when P drops
+- **Lightweight deployment**: No embedding models required
+
+---
 
 ## Citation
+```bibtex
+@article{author2025predictive,
+  title={Predictive Coherence: An Information-Theoretic Metric for Agent-Environment Coupling},
+  author={[Author Names]},
+  journal={[Journal]},
+  year={2025}
+}
+```
 
-[Paper reference to be added]
+---
+
+## References
+
+- Reimers, N., & Gurevych, I. (2019). Sentence-BERT: Sentence embeddings using Siamese BERT-networks. *EMNLP-IJCNLP*. https://arxiv.org/abs/1908.10084
+
+- Zheng, L., et al. (2023). Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena. *NeurIPS*. https://arxiv.org/abs/2306.05685
+
+---
 
 ## License
 
-[License to be added]
+MIT License
+
+---
+
+## Contact
+
+[Your contact information]
