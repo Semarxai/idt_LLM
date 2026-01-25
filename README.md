@@ -71,6 +71,128 @@ idt/
 
 ## Files Description
 
+
+## Llama_Master_metrics_Sample.csv
+
+A sample data set. The repository includes a sample of the analyzed conversation data (`data/sample_metrics.csv`). Full dataset available upon request.
+
+## Data Description
+
+### Column Definitions
+
+#### Identifiers
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `UID` | string | Unique identifier for each conversation turn |
+| `teacher` | string | Teacher model: `claude`, `chatgpt`, or `gemini` |
+| `condition` | string | Generation setting: `normal` (temp=0.7) or `constrained` (temp=0.1) |
+| `test` | integer | Test number (1-10) indicating experimental design |
+| `Turn` | integer | Turn number within conversation (1 to max 200) |
+
+#### Core Information-Theoretic Metrics
+
+| Column | Type | Formula | Description |
+|--------|------|---------|-------------|
+| `H_S` | float | H(S) | Shannon entropy of current state (context/prompt tokens) |
+| `H_A` | float | H(A) | Shannon entropy of action (response tokens) |
+| `H_S_prime` | float | H(S') | Shannon entropy of next state tokens |
+| `H_SA` | float | H(S,A) | Joint entropy of state and action |
+| `H_SAS_prime` | float | H(S,A,S') | Joint entropy of state, action, and next state |
+| `MI_SA_Sprime` | float | MI(S,A; S') | Mutual information between state-action pair and next state |
+| `MI_S_A` | float | MI(S; A) | Mutual information between state and action |
+| `P` | float | MI(S,A;S') / (H(S)+H(A)+H(S')) | **Predictive Coherence** — primary metric (range: 0-1) |
+| `Hf` | float | H(S'\|S,A) | Forward entropy — uncertainty about next state given current state-action |
+| `Hb` | float | H(S,A\|S') | Backward entropy — uncertainty about state-action given next state |
+| `Delta` | float | Hf - Hb | **Temporal asymmetry** — negative values indicate agentic behavior |
+
+#### Token Statistics
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `Tokens_S` | integer | Number of tokens in state (context/prompt) |
+| `Tokens_A` | integer | Number of tokens in action (response) |
+| `Tokens_S_prime` | integer | Number of tokens in next state |
+| `Unique_S` | integer | Number of unique tokens in state |
+| `Unique_A` | integer | Number of unique tokens in action |
+| `Unique_S_prime` | integer | Number of unique tokens in next state |
+
+#### Conversation Content
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `Prompt` | string | Teacher model's prompt/question for this turn |
+| `Response` | string | Student model's (Llama) response |
+
+#### Perturbation Indicator
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `injection` | integer | `1` = perturbation injected at this turn, `0` = normal turn |
+
+#### Baseline Metrics (External Evaluation)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `cosine_sim` | float | Cosine similarity between prompt and response embeddings (Sentence-BERT) |
+| `adjacent_coherence` | float | Cosine similarity between current response and previous response |
+| `cumulative_drift` | float | Cosine similarity between current response and first response |
+| `score_openai` | float | LLM-as-Judge quality score (1-7 scale, GPT-4) |
+| `explanation_openai` | string | GPT-4's explanation for the assigned score |
+
+### Metric Interpretation Guide
+
+#### P (Predictive Coherence)
+
+| Value | Interpretation |
+|-------|----------------|
+| ~0.27 | Normal baseline for LLM conversations |
+| < 0.22 | Potential coupling disruption |
+| > 0.35 | Unusually tight coupling |
+
+#### Delta H (Temporal Asymmetry)
+
+| Value | Interpretation |
+|-------|----------------|
+| < 0 | Agentic behavior (forward prediction easier than backward) |
+| ≈ 0 | Symmetric/reactive system |
+| > 0 | Unusual (backward inference easier) |
+
+#### Cosine Similarity
+
+| Value | Interpretation |
+|-------|----------------|
+| > 0.7 | High semantic relevance |
+| 0.4 - 0.7 | Moderate relevance |
+| < 0.4 | Low relevance / off-topic |
+
+#### Judge Score (score_openai)
+
+| Value | Interpretation |
+|-------|----------------|
+| 6-7 | Excellent response |
+| 4-5 | Good response |
+| 2-3 | Poor response |
+| 1 | Very poor / incoherent |
+
+### Data Statistics
+
+| Statistic | Value |
+|-----------|-------|
+| Total turns | 4,574 |
+| Teachers | 3 (Claude, ChatGPT, Gemini) |
+| Tests | 9 (Tests 1-4, 6-10) |
+| Conditions | 2 (normal, constrained) |
+| Unique combinations | 34 |
+| Perturbation turns | 135 (5 injections × 3 tests × 3 teachers × 3 types) |
+
+---
+
+
+
+
+
+
 ### config.py
 
 Central configuration file containing:
