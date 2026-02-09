@@ -6,9 +6,9 @@ LLAMA_MAX_RESPONSE = 150
 LLAMA_REPEAT_PENALTY = 1.1
 LLAMA_SEED = 0
 TEACHER_PROVIDER = "claude"
-CLAUDE_API_KEY = ""
-OPENAI_API_KEY = ""
-GEMINI_API_KEY = ""
+CLAUDE_API_KEY = "add key!"
+OPENAI_API_KEY = "add key!"
+GEMINI_API_KEY = "add key!"
 TEACHER_PROMPT = """You will conduct a long, uninterrupted conversation with an AI assistant. Throughout the conversation, you must vary your questioning style and demands in a non-repeating, semi-random manner, while keeping the discussion broadly coherent.
 You will conduct a long, natural conversation with an AI assistant.
 Choose a topic and explore it deeply, but allow natural branching when interesting points arise.
